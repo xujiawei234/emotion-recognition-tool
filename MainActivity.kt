@@ -3,6 +3,8 @@ package com.vivo.faceemotionanalyzer
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.*
+import android.graphics.ImageFormat
+import android.media.Image
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,8 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
@@ -25,6 +26,7 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : AppCompatActivity() {
 
@@ -48,6 +50,7 @@ class MainActivity : AppCompatActivity() {
 
     // 相机 & 状态
     private var isCameraOn = false
+    private var isRealTimeAnalyzing = false
     private var selectedImageUri: Uri? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -58,6 +61,10 @@ class MainActivity : AppCompatActivity() {
     // 权限请求码
     private val REQUEST_CAMERA_PERMISSION = 100
     private val REQUEST_STORAGE_PERMISSION = 101
+
+    // 帧分析间隔（每 N 帧分析一次）
+    private val ANALYZE_EVERY_N_FRAMES = 10
+    private val frameCounter = AtomicInteger(0)
 
     // 相册选择
     private val galleryLauncher = registerForActivityResult(
@@ -184,8 +191,11 @@ class MainActivity : AppCompatActivity() {
             neutralText?.text = "中性：$neutral%"
             contemptText?.text = "轻蔑：$contempt%" // 新增
             mainEmotionText?.text = mainEmotion
-            statusText?.text = "✅ 识别完成"
-            statusText?.setTextColor(Color.GREEN)
+            // 实时分析模式下不显示"识别完成"，保持"实时识别中"状态
+            if (!isRealTimeAnalyzing) {
+                statusText?.text = "✅ 识别完成"
+                statusText?.setTextColor(Color.GREEN)
+            }
         }
     }
 
@@ -230,45 +240,19 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val safeCameraBitmap = if (isCameraOn) {
-                previewView?.bitmap
-            } else {
-                null
+            if (!isCameraOn) {
+                Toast.makeText(this, "请先打开相机", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
-            runOnUiThread {
-                statusText?.text = "分析中..."
-                statusText?.setTextColor(Color.BLUE)
-                detectBtn?.isEnabled = false
-            }
+            // 切换实时分析状态
+            isRealTimeAnalyzing = !isRealTimeAnalyzing
+            updateDetectBtnState()
 
-            cameraExecutor.execute {
-                try {
-                    val bitmap: Bitmap = when {
-                        selectedImageUri != null -> {
-                            val input = contentResolver.openInputStream(selectedImageUri!!)
-                                ?: throw Exception("无法读取图片")
-                            BitmapFactory.decodeStream(input)
-                                ?: throw Exception("图片解析失败")
-                        }
-                        isCameraOn -> {
-                            safeCameraBitmap ?: throw Exception("无法获取相机画面")
-                        }
-                        else -> throw Exception("请先打开相机或选择图片")
-                    }
-
-                    analyzeEmotion(bitmap)
-
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        statusText?.text = "失败：${e.message}"
-                        statusText?.setTextColor(Color.RED)
-                    }
-                } finally {
-                    runOnUiThread {
-                        detectBtn?.isEnabled = true
-                    }
-                }
+            // 停止识别时更新状态文字
+            if (!isRealTimeAnalyzing) {
+                statusText?.text = "⏸️ 已停止识别"
+                statusText?.setTextColor(Color.GRAY)
             }
         }
     }
@@ -281,6 +265,9 @@ class MainActivity : AppCompatActivity() {
             imageView?.visibility = View.VISIBLE
             cameraBtn?.text = "打开相机"
             isCameraOn = false
+            // 关闭实时分析
+            isRealTimeAnalyzing = false
+            updateDetectBtnState()
         } else {
             selectedImageUri = null
             startCamera()
@@ -298,22 +285,94 @@ class MainActivity : AppCompatActivity() {
                 it.setSurfaceProvider(previewView?.surfaceProvider)
             }
 
+            // 图像分析器配置
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                .build()
+                .also { analysis ->
+                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                        processFrame(imageProxy)
+                    }
+                }
+
             // 尝试获取可用的摄像头选择器
             val selector = getAvailableCameraSelector(cp)
 
             try {
                 cp.unbindAll()
-                cp.bindToLifecycle(this, selector, preview)
+                cp.bindToLifecycle(this, selector, preview, imageAnalysis)
 
                 previewView?.visibility = View.VISIBLE
                 imageView?.visibility = View.GONE
                 previewHint?.visibility = View.GONE
                 cameraBtn?.text = "关闭相机"
                 isCameraOn = true
+                updateDetectBtnState()
             } catch (e: Exception) {
                 Toast.makeText(this, "相机启动失败：${e.message}", Toast.LENGTH_SHORT).show()
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    // 处理每一帧
+    private fun processFrame(imageProxy: ImageProxy) {
+        if (!isRealTimeAnalyzing || tflite == null) {
+            imageProxy.close()
+            return
+        }
+
+        // 每 N 帧分析一次
+        val currentCount = frameCounter.incrementAndGet()
+        if (currentCount % ANALYZE_EVERY_N_FRAMES != 0) {
+            imageProxy.close()
+            return
+        }
+
+        val bitmap = imageProxy.toBitmap()
+        imageProxy.close()
+
+        if (bitmap != null) {
+            cameraExecutor.execute {
+                try {
+                    analyzeEmotion(bitmap)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    // 将 ImageProxy 转换为 Bitmap
+    private fun ImageProxy.toBitmap(): Bitmap? {
+        val yBuffer = planes[0].buffer
+        val vuBuffer = planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val vuSize = vuBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + vuSize)
+        yBuffer.get(nv21, 0, ySize)
+        vuBuffer.get(nv21, ySize, vuSize)
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
+        val out = java.io.ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, width, height), 100, out)
+        val imageBytes = out.toByteArray()
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+    }
+
+    // 更新识别按钮状态
+    private fun updateDetectBtnState() {
+        detectBtn?.text = if (isRealTimeAnalyzing) "停止识别" else "开始识别"
+        detectBtn?.setBackgroundColor(
+            if (isRealTimeAnalyzing) Color.parseColor("#FF5722")
+            else Color.parseColor("#4CAF50")
+        )
+        if (isRealTimeAnalyzing) {
+            statusText?.text = "🔄 实时识别中..."
+            statusText?.setTextColor(Color.BLUE)
+        }
     }
 
     // 获取可用的摄像头选择器
