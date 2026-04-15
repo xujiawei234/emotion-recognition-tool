@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#FAFAFA"
+    tools:context=".MainActivity">
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="面部情绪识别系统"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="#1A1A2E"
+        android:layout_marginBottom="16dp"/>
+
+    <!-- Camera / Image preview area -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#ECECEC"
+        android:layout_marginBottom="16dp">
+
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"/>
+
+        <ImageView
+            android:id="@+id/imageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:visibility="gone"/>
+
+        <!-- Face guide frame -->
+        <View
+            android:id="@+id/faceFrame"
+            android:layout_width="180dp"
+            android:layout_height="220dp"
+            android:layout_centerInParent="true"
+            android:background="@drawable/face_frame_border"
+            android:visibility="gone"/>
+
+        <!-- Hint shown when nothing is loaded -->
+        <LinearLayout
+            android:id="@+id/hintLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📷"
+                android:textSize="48sp"
+                android:gravity="center"/>
+
+            <TextView
+                android:id="@+id/previewHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="点击开启摄像头或上传图片"
+                android:textColor="#888888"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <!-- Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <Button
+            android:id="@+id/cameraBtn"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="开启摄像头"
+            android:backgroundTint="#165DFF"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/uploadBtn"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="上传图片"
+            android:backgroundTint="#00B42A"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/detectBtn"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="分析情绪"
+            android:backgroundTint="#FF7D00"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
+
+    <!-- Status -->
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="就绪"
+        android:gravity="center"
+        android:textSize="15sp"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Results card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:padding="12dp"
+        android:elevation="2dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="识别结果"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A2E"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Main emotion highlight -->
+        <TextView
+            android:id="@+id/mainEmotionText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="— 未检测 —"
+            android:textSize="22sp"
+            android:gravity="center"
+            android:textColor="#FF4500"
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E0E0E0"
+            android:layout_marginBottom="10dp"/>
+
+        <!-- Emotion rows -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/happyText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😊 开心：0%"
+                android:textSize="13sp"/>
+
+            <TextView
+                android:id="@+id/sadText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😢 悲伤：0%"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/angryText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😡 愤怒：0%"
+                android:textSize="13sp"/>
+
+            <TextView
+                android:id="@+id/surprisedText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😲 惊讶：0%"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/neutralText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😐 中性：0%"
+                android:textSize="13sp"/>
+
+            <TextView
+                android:id="@+id/fearText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😨 恐惧：0%"
+                android:textSize="13sp"/>
+        </LinearLayout>
+
+        <!-- 新增：轻蔑 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/contemptText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="😒 轻蔑：0%"
+                android:textSize="13sp"/>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

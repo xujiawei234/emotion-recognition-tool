@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">面部情绪识别系统</string>
+    <string name="title_face_emotion_analyzer">面部情绪识别系统</string>
+    <string name="label_camera_preview">识别画面</string>
+    <string name="label_emotion_result">情绪分析结果</string>
+    <string name="btn_open_camera">开启摄像头</string>
+    <string name="btn_upload_image">上传图片</string>
+    <string name="btn_detect_emotion">开始分析情绪</string>
+    <string name="label_main_emotion">主要情绪：</string>
+    <string name="label_happy">开心</string>
+    <string name="label_sad">悲伤</string>
+    <string name="label_angry">愤怒</string>
+    <string name="label_surprised">惊讶</string>
+    <string name="label_neutral">中性</string>
+    <string name="label_fear">恐惧</string>
+    <string name="value_main_emotion">未检测</string>
+    <string name="value_0_percent">0%</string>
+    <string name="emoji_default">😄</string>
+    <string name="status_waiting">等待识别...</string>
+    <string name="value_undetected">未检测</string>
+</resources>
